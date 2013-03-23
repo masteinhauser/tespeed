@@ -60,7 +60,7 @@ class CallbackStringIO(StringIO):
 
 class TeSpeed:
 
-    def __init__(self, server = "", numTop = 0, store = False, suppress = False, unit = False):
+    def __init__(self, server = "", numTop = 0, servercount = 3, store = False, suppress = False, unit = False):
 
         self.headers = {
             'Accept' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -71,12 +71,17 @@ class TeSpeed:
             #'Referer' : 'http://c.speedtest.net/flash/speedtest.swf?v=301256',
         }
 
+        self.num_servers=servercount;
+        self.servers=[]
+        if server != "":
+            self.servers=[server]
+
         self.server=server
         self.down_speed=-1
         self.up_speed=-1
         self.latencycount=10
         self.bestServers=5
-        
+
         self.units="Mbit"
         self.unit=0
         
@@ -89,12 +94,45 @@ class TeSpeed:
         if store:
             print_debug("Printing CSV formated results to STDOUT.\n")
         self.numTop=int(numTop)
-        self.downList=['350x350', '500x500', '750x750', '1000x1000',
-            '1500x1500', '2000x2000', '2000x2000', '2500x2500', '3000x3000',
-            '3500x3500', '4000x4000', '4000x4000', '4000x4000', '4000x4000']
-        self.upSizes=[1024*256, 1024*256, 1024*512, 1024*512, 
-            1024*1024, 1024*1024, 1024*1024*2, 1024*1024*2, 
-            1024*1024*2, 1024*1024*2]
+        #~ self.downList=['350x350', '500x500', '750x750', '1000x1000',
+            #~ '1500x1500', '2000x2000', '2000x2000', '2500x2500', '3000x3000',
+            #~ '3500x3500', '4000x4000', '4000x4000', '4000x4000', '4000x4000']
+        #~ self.upSizes=[1024*256, 1024*256, 1024*512, 1024*512, 
+            #~ 1024*1024, 1024*1024, 1024*1024*2, 1024*1024*2, 
+            #~ 1024*1024*2, 1024*1024*2]
+
+        self.downList=[
+'350x350', '350x350', '500x500', '500x500', '750x750', '750x750', '1000x1000', '1500x1500', '2000x2000', '2500x2500',
+
+'3000x3000','3500x3500','4000x4000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000',
+'1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000','1000x1000',
+
+'2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000',
+'2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000','2000x2000',
+
+'4000x4000', '4000x4000', '4000x4000', '4000x4000', '4000x4000'
+]
+
+#'350x350', '500x500', '750x750', '1000x1000',
+#            '1500x1500', '2000x2000', '2000x2000', '2500x2500', '3000x3000',
+#            '3500x3500', '4000x4000', '4000x4000', '4000x4000', '4000x4000'
+#]
+        self.upSizes=[
+
+1024*256, 1024*256, 1024*512, 1024*512, 1024*1024, 1024*1024, 1024*1024*2, 1024*1024*2, 1024*1024*2,  1024*512,
+1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256,
+
+1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512,
+1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512,
+
+1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256, 1024*256,
+1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512, 1024*512,
+
+1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2,  1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2,
+1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2,  1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2, 1024*1024*2,
+#            1024*1024, 1024*1024, 1024*1024*2, 1024*1024*2, 
+#            1024*1024*2, 1024*1024*2]
+]
 
         self.postData=""
         self.TestSpeed()
@@ -139,9 +177,8 @@ class TeSpeed:
 
 
     def TestLatency(self, servers):
-    # Finding the server with lowest latency
+    # Finding servers with lowest latency
         print_debug("Testing latency...\n")
-        shortest = -1.0
         po = []
         for server in servers:
             now=self.TestSingleLatency(server['url']+"latency.txt?x=" + str( time.time() ))*1000
@@ -151,12 +188,24 @@ class TeSpeed:
             print_debug("%0.0f ms latency for %s (%s, %s, %s) [%0.2f km]\n" % 
                 (now, server['url'], server['sponsor'], server['name'], server['country'], server['distance']))
 
-            if (now < shortest and shortest > 0) or shortest < 0:
-                shortest = now
-                po = server
+            server['latency']=now
 
-        print_debug("Best server with average latency %0.0fms - %s, %s, %s\n" % 
-            (shortest, po['sponsor'], po['name'], po['country']))
+            # Pick specified ammount of servers with best latency for testing
+            if int(len(po)) < int(self.num_servers):
+                po.append(server)
+            else:
+                largest = -1
+
+                for x in range(len(po)):
+                    if largest < 0:
+                        if now < po[x]['latency']:
+                            largest = x
+                    elif po[largest]['latency'] < po[x]['latency']:
+                        largest = x
+                    #if cur['latency']
+
+                if largest >= 0:
+                    po[largest]=server
 
 	self.latency = shortest
         return po
@@ -336,7 +385,7 @@ class TeSpeed:
             'lat': float(server.attrib['lat']), 
             'lon': float(server.attrib['lon']),
             'url': server.attrib['url'].rsplit('/', 1)[0] + '/',
-            'url2': server.attrib['url2'].rsplit('/', 1)[0] + '/',
+            #'url2': server.attrib['url2'].rsplit('/', 1)[0] + '/',
             'name': server.attrib['name'], 
             'country': server.attrib['country'], 
             'sponsor': server.attrib['sponsor'], 
@@ -356,22 +405,22 @@ class TeSpeed:
     def FindBestServer(self):
         print_debug("Looking for closest and best server...\n")
         best=self.TestLatency(self.Closest([self.config['lat'], self.config['lon']], self.server_list, self.bestServers))
-        self.server=best['url']
-        #print_debug("\033[94mBest server: %s\033[0m\n" % (self.server))
-
+        for server in best:
+            self.servers.append(server['url'])
 
     def AsyncRequest(self, url, num, upload=0):
-        
         connections=[]
         d=Manager().dict()
         start=time.time()
         for i in range(num):
+            full_url=self.servers[i % len(self.servers)]+url
+            #print full_url
             connection={}
             connection['parent'], connection['child']= Pipe()
             if upload==1:
-                connection['connection'] = Process(target=self.AsyncPost, args=(connection['child'], url, i, num, d))
+                connection['connection'] = Process(target=self.AsyncPost, args=(connection['child'], full_url, i, num, d))
             else:
-                connection['connection'] = Process(target=self.AsyncGet, args=(connection['child'], url, i, num, d))
+                connection['connection'] = Process(target=self.AsyncGet, args=(connection['child'], full_url, i, num, d))
             connection['connection'].start()
             connections.append(connection)
 
@@ -408,7 +457,7 @@ class TeSpeed:
     def TestUpload(self):
     # Testing upload speed
 
-        url=self.server+"upload.php?x=" + str( time.time() )
+        url="upload.php?x=" + str( time.time() )
 
         sizes, took=[0,0]
         data=""
@@ -417,8 +466,26 @@ class TeSpeed:
                 #print_debug("Generating new string to upload. Length: %d\n" % (self.upSizes[i]))
                 data=''.join("1" for x in xrange(self.upSizes[i]))
             self.postData=urllib.urlencode({'upload6': data })
-
-            sizes, took=self.AsyncRequest(url, (i<4 and 1 or (i<6 and 2 or (i<6 and 4 or 8))), 1)
+            
+            if i<2:
+                thrds=1
+            elif i<5:
+                thrds=2
+            elif i<7:
+                thrds=2
+            elif i<10:
+                thrds=3
+            elif i<25:
+                thrds=6
+            elif i<45:
+                thrds=4
+            elif i<65:
+                thrds=3
+            else:
+                thrds=2
+            
+            sizes, took=self.AsyncRequest(url, thrds, 1)
+            #sizes, took=self.AsyncRequest(url, (i<4 and 1 or (i<6 and 2 or (i<6 and 4 or 8))), 1)
             if sizes==0:
                 continue
 
@@ -449,9 +516,28 @@ class TeSpeed:
     # Testing download speed
         sizes, took=[0,0]
         for i in range(0, len(self.downList)):
-            url=self.server+"random"+self.downList[i]+".jpg?x=" + str( time.time() ) + "&y=3"
-
-            sizes, took=self.AsyncRequest(url, (i<1 and 2 or (i<6 and 4 or (i<10 and 6 or 8))) )
+            url="random"+self.downList[i]+".jpg?x=" + str( time.time() ) + "&y=3"
+            
+            
+            if i<2:
+                thrds=1
+            elif i<5:
+                thrds=2
+            elif i<11:
+                thrds=2
+            elif i<13:
+                thrds=4
+            elif i<25:
+                thrds=2
+            elif i<45:
+                thrds=3
+            elif i<65:
+                thrds=2
+            else:
+                thrds=2
+            
+            sizes, took=self.AsyncRequest(url, thrds )
+            #sizes, took=self.AsyncRequest(url, (i<1 and 2 or (i<6 and 4 or (i<10 and 6 or 8))) )
             if sizes==0:
                 continue
 
@@ -499,25 +585,25 @@ class TeSpeed:
 
 def print_debug(string):
     if args.suppress!=True:
-        sys.stderr.write(string)
+        sys.stderr.write(string.encode('utf8'))
     #return
 
 def print_result(string):
     if args.store==True:
-        sys.stdout.write(string)
+        sys.stdout.write(string.encode('utf8'))
     #return
 
 def main(args):
-    
+
     if args.listservers:
         args.store=True
-    
+
     if args.listservers!=True and args.server=='' and args.store!=True:
         print_debug("Getting ready. Use parameter -h or --help to see available features.\n")
     else:
         print_debug("Getting ready\n")
     try:
-        t=TeSpeed(args.listservers and 'list-servers' or args.server, args.listservers, args.store and True or False, args.suppress and True or False, args.unit and True or False)
+        t=TeSpeed(args.listservers and 'list-servers' or args.server, args.listservers, args.servercount, args.store and True or False, args.suppress and True or False, args.unit and True or False)
     except (KeyboardInterrupt, SystemExit):
         print_debug("\nTesting stopped.\n")
         #raise
@@ -530,6 +616,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--csv', dest='store', action='store_const', const=True, help='Print CSV formated output to STDOUT.')
     parser.add_argument('-s', '--suppress', dest='suppress', action='store_const', const=True, help='Suppress debugging (STDERR) output.')
     parser.add_argument('-mib', '--mebibit', dest='unit', action='store_const', const=True, help='Show results in mebibits.')
+    parser.add_argument('-n', '--server-count', dest='servercount', nargs='?', default=1, const=1, help='Specify how many different servers should be used in paralel. (Defaults to 1.) (Increase it for >100Mbit testing.)')
 
     args = parser.parse_args()
     main(args)
