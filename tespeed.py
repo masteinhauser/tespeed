@@ -31,6 +31,7 @@ class CallbackStringIO(StringIO):
         self.num=num
         self.d=d
         self.total=self.len*self.th
+	self.latency = -1.0
     
     def read(self, n=10240):
         next = StringIO.read(self, n)
@@ -157,6 +158,7 @@ class TeSpeed:
         print_debug("Best server with average latency %0.0fms - %s, %s, %s\n" % 
             (shortest, po['sponsor'], po['name'], po['country']))
 
+	self.latency = shortest
         return po
 
 
@@ -485,7 +487,7 @@ class TeSpeed:
         self.TestDownload()
         self.TestUpload()
 
-        print_result("%0.2f,%0.2f,\"%s\",\"%s\"\n" % (self.down_speed, self.up_speed, self.units, self.server))
+        print_result("%s,%0.2f,%0.2f,\"%s\",%0.0f,\"ms\",\"%s\"\n" % (time.time(), self.down_speed, self.up_speed, self.units, self.latency, self.server))
 
     def ListServers(self, num=0):
         
